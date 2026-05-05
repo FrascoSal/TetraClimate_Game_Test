@@ -6,13 +6,13 @@
     <style>
         body { font-family: Arial, sans-serif; margin: 10px; background-color: #f4f4f9; display: flex; flex-direction: column; height: 95vh;}
         h1, h2, h3 { margin: 5px 0; }
-        button { cursor: pointer; padding: 5px 10px; margin: 2px; border-radius: 3px; border: 1px solid #ccc; font-size: 13px;}
+        button { cursor: pointer; padding: 5px 10px; margin: 2px; border-radius: 3px; border: 1px solid #ccc; font-size: 13px; transition: 0.2s;}
         button:hover { background-color: #ddd; }
         .board { display: flex; flex: 1; gap: 10px; }
         .panel { background: white; padding: 10px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); flex: 1; overflow-y: auto; border: 2px solid transparent;}
         .active-player { border-color: #4CAF50; background-color: #f0fdf0; }
         .market { flex: 1; background: #eef; }
-        .card { border: 1px solid #aaa; padding: 5px; margin: 5px 0; cursor: pointer; border-radius: 4px; font-size: 13px; color: #111;}
+        .card { border: 1px solid #aaa; padding: 8px; margin: 5px 0; cursor: pointer; border-radius: 4px; font-size: 13px; color: #111; position: relative;}
         .card:hover { filter: brightness(0.95); box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
         .stats { font-weight: bold; margin-bottom: 10px; color: #333; }
         .grid-area, .hand-area { min-height: 100px; border: 1px dashed #aaa; padding: 5px; margin-bottom: 10px; border-radius: 4px;}
@@ -25,13 +25,11 @@
         .ai-recap-panel { background-color: #e3f2fd; padding: 10px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-top: 10px; border: 1px solid #90caf9;}
         .ai-recap-panel ul { margin: 5px 0; padding-left: 20px; font-family: monospace; font-size: 13px; color: #0d47a1;}
 
-        /* Modal Styles */
         .modal { display: none; position: fixed; z-index: 10; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); }
         .modal-content { background-color: #fff; margin: 5% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 600px; border-radius: 5px; max-height: 80vh; overflow-y: auto;}
         .close { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
         .close:hover { color: black; }
         
-        /* Action Buttons in Modal */
         .action-btn { padding: 10px 20px; margin: 10px; font-size: 16px; border: none; border-radius: 5px; color: white; font-weight: bold;}
         .btn-ap { background-color: #FF9800; }
         .btn-buy { background-color: #2196F3; }
@@ -123,24 +121,24 @@
 <script>
 const CARD_DB = {
     "Pollution": { type: "Junk", cost: 0 },
-    "Coal Plant": { type: "Energy Source — Thermal", cost: 0, text: "+2 Energy, +1 CO2, +1 Pollution" },
-    "Biosphere Habitat": { type: "Biosphere", cost: 0, text: "Action: Trash self to remove up to 3 Pollution from hand. Draw 1 card." },
+    "Coal Plant": { type: "Energy Source — Thermal", cost: 0, text: "+1 Energy, +1 CO2, +1 Pollution" },
+    "Biosphere Habitat": { type: "Biosphere", cost: 0, text: "Action: Trash self and 1 Pollution from hand." },
     "Experiments": { type: "Policy", cost: 0, text: "Draw 2 cards. +1 Pollution to discard." },
-    "Offshore Wind Farm": { type: "Energy Source — Renewable", cost: 3, text: "Flip 3. +1 Energy per non-Pollution/non-Thermal card. Permanent. (+1 CO2 on buy)" },
-    "Solar Array": { type: "Energy Source — Renewable", cost: 5, text: "Flip 5. +1 Energy per non-Pollution/non-Thermal card. Permanent. (+1 CO2 on buy)" },
-    "Natural Gas Plant": { type: "Energy Source — Thermal", cost: 4, text: "Produces 3 Energy. +1 CO2." },
-    "Nuclear Power Plant": { type: "Energy Source", cost: 7, text: "Produces 4 Energy. Discard 1 hand card to activate. (+1 CO2 on buy)" },
-    "Battery Storage System": { type: "Technology", cost: 3, text: "Store up to 3 unspent energy. Permanent. (+1 Pollution on buy)" },
-    "Carbon Tax": { type: "Policy", cost: 4, text: "Opponent transfers 1 AP or takes 1 Pollution and +1 CO2." },
-    "Carbon Capture & Reforestation": { type: "Policy", cost: 5, text: "-1 CO2. Move 1 Trashed Biosphere to discard. Draw 1 card." },
-    "Smart Grid Upgrade": { type: "Policy", cost: 6, text: "Play next card from hand twice." },
-    "Intensive farming": { type: "Energy Source - Food", cost: 3, text: "Trash 1 Biosphere from hand to produce 3 Energy." },
-    "Transition Policy": { type: "Policy", cost: 5, text: "Trash up to 2 hand cards. If Thermal or Pollution trashed, draw 2 cards." },
-    "Ocean cleaning robot": { type: "Technology", cost: 6, text: "Trash up to 2 Pollution from hand. +1 CO2. Draw 2 cards." },
-    "Plastic": { type: "Technology", cost: 4, text: "Draw 3 cards. +1 Pollution." },
-    "Waste-to-Energy Plant": { type: "Energy Source — Thermal", cost: 4, text: "Flip 3. Trash revealed Pollution for 2 Energy each. +1 CO2." },
-    "Direct Air Capture Facility": { type: "Technology", cost: 5, text: "Spend up to 3 Buy Energy pool. Move CO2 back 1 space per Energy spent." },
-    "Eco-Tourism": { type: "Policy", cost: 3, text: "Reveal hand. +1 Buy Energy and Draw 1 card for every Biosphere in your hand." }
+    "Offshore Wind Farm": { type: "Energy Source — Renewable", cost: 2, text: "Flip 3. +1 Energy per non-Pollution/non-Thermal card. Permanent. (+1 CO2 on buy)" },
+    "Solar Array": { type: "Energy Source — Renewable", cost: 4, text: "Flip 4. +1 Energy per non-Pollution/non-Thermal card. Permanent. (+1 CO2 on buy)" },
+    "Natural Gas Plant": { type: "Energy Source — Thermal", cost: 3, text: "Produces 2 Energy. +1 CO2." },
+    "Nuclear Power Plant": { type: "Energy Source", cost: 6, text: "Produces 3 Energy. Discard 1 hand card to activate. (+1 CO2 on buy)" },
+    "Battery Storage System": { type: "Technology", cost: 2, text: "Store up to 3 unspent energy. Permanent. (+1 Pollution on buy)" },
+    "Carbon Tax": { type: "Policy", cost: 3, text: "Opponent transfers 1 AP or takes 1 Pollution and +1 CO2." },
+    "Carbon Capture & Reforestation": { type: "Policy", cost: 4, text: "-1 CO2. Move 1 Trashed Biosphere to discard. Draw 1 card." },
+    "Smart Grid Upgrade": { type: "Policy", cost: 5, text: "Play next card from hand twice." },
+    "Intensive farming": { type: "Energy Source - Food", cost: 2, text: "Trash 1 Biosphere from hand to produce 2 Energy." },
+    "Transition Policy": { type: "Policy", cost: 4, text: "Trash up to 2 hand cards. If Thermal or Pollution trashed, draw 2 cards." },
+    "Ocean cleaning robot": { type: "Technology", cost: 5, text: "Trash up to 2 Pollution from hand. +1 CO2. Draw 2 cards." },
+    "Plastic": { type: "Technology", cost: 3, text: "Draw 3 cards. +1 Pollution." },
+    "Waste-to-Energy Plant": { type: "Energy Source — Thermal", cost: 3, text: "Flip 2. Trash revealed Pollution for 1 Energy each. +1 CO2." },
+    "Direct Air Capture Facility": { type: "Technology", cost: 4, text: "Spend up to 3 Buy Energy pool. Move CO2 back 1 space per Energy spent." },
+    "Eco-Tourism": { type: "Policy", cost: 2, text: "Reveal hand. +1 Buy Energy and Draw 1 card for every Biosphere in your hand." }
 };
 
 const ALL_MARKET_CARDS = [
@@ -154,10 +152,10 @@ let state = {};
 let isGameOver = false;
 
 function getCardColor(type) {
-    if (type.includes("Biosphere")) return "#e8f5e9"; // Light Green
-    if (type.includes("Junk") || type.includes("Pollution")) return "#f3e5f5"; // Light Purple
-    if (type.includes("Policy") || type.includes("Technology")) return "#f5f5f5"; // Light Grey
-    if (type.includes("Energy Source")) return "#efebe9"; // Light Brown
+    if (type.includes("Biosphere")) return "#e8f5e9"; 
+    if (type.includes("Junk") || type.includes("Pollution")) return "#f3e5f5"; 
+    if (type.includes("Policy") || type.includes("Technology")) return "#f5f5f5"; 
+    if (type.includes("Energy Source")) return "#efebe9"; 
     return "#ffffff";
 }
 
@@ -178,10 +176,10 @@ function startGame(isAI) {
     isGameOver = false;
     document.getElementById('gamelog').innerHTML = "Game Started.";
     
-    let selectedMarket = [...ALL_MARKET_CARDS];
-    shuffle(selectedMarket);
-    selectedMarket = selectedMarket.slice(0, 8);
-    // Sort market from cheapest to most expensive
+    // Fix: Shuffle pool first, pick 8, then sort the selected 8 by cost.
+    let shuffledPool = [...ALL_MARKET_CARDS];
+    shuffle(shuffledPool);
+    let selectedMarket = shuffledPool.slice(0, 8);
     selectedMarket.sort((a,b) => CARD_DB[a].cost - CARD_DB[b].cost);
     
     let cats = [0, 1, 2, 3];
@@ -198,7 +196,7 @@ function startGame(isAI) {
         players: [],
         playTwice: false,
         aiRecap: [],
-        pendingEnergy: 0 // Used for the modal buttons
+        pendingEnergy: 0 
     };
 
     document.getElementById('ai-badge').style.display = isAI ? 'inline' : 'none';
@@ -223,10 +221,12 @@ function startGame(isAI) {
 function drawCards(pIdx, num) {
     if(isGameOver) return;
     let p = state.players[pIdx];
+    let drawnCount = 0;
+    
     for(let i=0; i<num; i++) {
         if(p.deck.length === 0) {
             if(p.discard.length === 0) {
-                log(`Player ${pIdx+1} has no more cards to draw!`);
+                log(`Player ${pIdx+1} has no more cards to shuffle into the deck!`);
                 break;
             }
             p.deck = [...p.discard]; 
@@ -236,6 +236,7 @@ function drawCards(pIdx, num) {
         }
         if(p.deck.length > 0) {
             p.hand.push(p.deck.pop());
+            drawnCount++;
         }
     }
 }
@@ -257,11 +258,10 @@ function checkCatastrophes() {
             state.catastrophes.push(thresholds[i]);
             let catIndex = state.catastropheOrder[i];
             
-            // Strong warning for Humans
-            if(!(state.isPvE && state.activeP === 1)) {
-                alert(`🚨 WARNING: CATASTROPHE TRIGGERED! 🚨\n\nCO2 reached level ${thresholds[i]}.\nEffect: ${events[catIndex]}`);
-            }
+            // Fix: Show alert regardless of whose turn it is
+            alert(`🚨 WARNING: CATASTROPHE TRIGGERED! 🚨\n\nCO2 reached level ${thresholds[i]}.\nEffect: ${events[catIndex]}`);
             log(`<b>CATASTROPHE!</b> ${events[catIndex]}`);
+            
             applyCatastrophe(catIndex);
         }
     }
@@ -380,13 +380,12 @@ function executePolicy(cardName, p) {
     } else if(cardName === "Biosphere Habitat") {
         let pC = 0;
         for(let i=p.hand.length-1; i>=0; i--) {
-            if(p.hand[i] === "Pollution" && pC < 3) { 
+            if(p.hand[i] === "Pollution" && pC < 1) { 
                 p.trashed.push(p.hand.splice(i, 1)[0]); 
                 pC++; 
             }
         }
-        log(`Trashed self and ${pC} Pollution cards.`);
-        drawCards(p.id, 1);
+        log(`Trashed self and ${pC} Pollution card(s).`);
         trashedSelf = true;
     } else if(cardName === "Carbon Tax") {
         let accepted = false;
@@ -474,9 +473,9 @@ function activateGridCard(gridIdx) {
     let energyGen = 0;
 
     if(cardName === "Coal Plant") {
-        energyGen = 2; addCO2(1); p.discard.push("Pollution");
+        energyGen = 1; addCO2(1); p.discard.push("Pollution");
     } else if(cardName === "Natural Gas Plant") {
-        energyGen = 3; addCO2(1);
+        energyGen = 2; addCO2(1);
     } else if(cardName === "Offshore Wind Farm") {
         let revealed = [];
         for(let i=0; i<3; i++) {
@@ -488,10 +487,10 @@ function activateGridCard(gridIdx) {
             if(!t.includes("Junk") && !t.includes("Thermal")) energyGen++; 
         });
         p.discard.push(...revealed);
-        log(`Wind Farm generated ${energyGen} energy.`);
+        log(`Wind Farm revealed: [${revealed.join(", ")}]. Generated ${energyGen} energy.`);
     } else if(cardName === "Solar Array") {
         let revealed = [];
-        for(let i=0; i<5; i++) {
+        for(let i=0; i<4; i++) {
             if(p.deck.length===0 && p.discard.length>0) { p.deck=[...p.discard]; p.discard=[]; shuffle(p.deck); }
             if(p.deck.length>0) revealed.push(p.deck.pop());
         }
@@ -500,12 +499,12 @@ function activateGridCard(gridIdx) {
             if(!t.includes("Junk") && !t.includes("Thermal")) energyGen++; 
         });
         p.discard.push(...revealed);
-        log(`Solar Array generated ${energyGen} energy.`);
+        log(`Solar Array revealed: [${revealed.join(", ")}]. Generated ${energyGen} energy.`);
     } else if(cardName === "Nuclear Power Plant") {
         let choice = prompt(`To activate Nuclear, type a card from hand to discard: ${p.hand.join(", ")}`);
         if(p.hand.includes(choice)) {
             p.discard.push(p.hand.splice(p.hand.indexOf(choice), 1)[0]);
-            energyGen = 4;
+            energyGen = 3;
         } else {
             if(!(state.isPvE && p.id === 1)) alert("Invalid choice.");
             return;
@@ -513,7 +512,7 @@ function activateGridCard(gridIdx) {
     } else if(cardName === "Intensive farming") {
         if(p.hand.includes("Biosphere Habitat")) {
             p.trashed.push(p.hand.splice(p.hand.indexOf("Biosphere Habitat"), 1)[0]);
-            energyGen = 3;
+            energyGen = 2;
         } else { 
             if(!(state.isPvE && p.id === 1)) alert("Need Biosphere in hand to trash."); 
             return; 
@@ -521,7 +520,7 @@ function activateGridCard(gridIdx) {
     } else if(cardName === "Waste-to-Energy Plant") {
         let revealed = [];
         let polCount = 0;
-        for(let i=0; i<3; i++) {
+        for(let i=0; i<2; i++) {
             if(p.deck.length===0 && p.discard.length>0) { p.deck=[...p.discard]; p.discard=[]; shuffle(p.deck); }
             if(p.deck.length>0) revealed.push(p.deck.pop());
         }
@@ -533,9 +532,9 @@ function activateGridCard(gridIdx) {
                 p.discard.push(c);
             }
         });
-        energyGen = polCount * 2;
+        energyGen = polCount * 1;
         addCO2(1);
-        log(`Waste-to-Energy Plant generated ${energyGen} energy and trashed ${polCount} Pollution.`);
+        log(`Waste-to-Energy flipped: [${revealed.length > 0 ? revealed.join(", ") : "Nothing"}]. Trashed ${polCount} Pollution.`);
     } else if(cardName === "Battery Storage System") {
         if(!(state.isPvE && p.id === 1)) alert("Battery is passive.");
         return;
@@ -545,13 +544,11 @@ function activateGridCard(gridIdx) {
 
     if(energyGen > 0) {
         if(state.isPvE && p.id === 1) {
-            // AI auto-resolves energy
             let choice = Math.random() > 0.4 ? 'BUY' : 'AP';
             if(choice === 'AP') { p.ap += energyGen; log(`Converted ${energyGen} energy to AP.`); }
             else { p.energyPool += energyGen; log(`Added ${energyGen} to Buy Pool.`); }
             render();
         } else {
-            // Human gets button overlay
             state.pendingEnergy = energyGen;
             document.getElementById('activation-msg').innerText = `You generated ${energyGen} Energy. What would you like to do?`;
             document.getElementById('activationModal').style.display = 'block';
@@ -678,7 +675,7 @@ function nextPhase() {
                     p.discard.push(p.grid.splice(i, 1)[0]);
                 }
             } else {
-                p.discard.push(p.grid.splice(i, 1)[0]); // Nuclear and Thermal discard here
+                p.discard.push(p.grid.splice(i, 1)[0]); 
             }
         }
 
@@ -745,7 +742,7 @@ function doAITurn() {
             
             if(cName === "Biosphere Habitat") {
                 let polCount = p.hand.filter(c => c === "Pollution").length;
-                if(polCount < 2) continue;
+                if(polCount < 1) continue;
             }
 
             let isGrid = cInfo.type.includes("Energy") || cName === "Battery Storage System";
@@ -774,7 +771,7 @@ function doAITurn() {
         
         if (diffEnergy > 0) addAiLog("Activated " + cName + ", stored " + diffEnergy + " Buy Energy.");
         else if (diffAp > 0) addAiLog("Activated " + cName + ", gained " + diffAp + " AP.");
-        else addAiLog("Activated " + cName + " (passive/failed).");
+        else addAiLog("Activated " + cName + ".");
     }
     if(isGameOver) return;
     nextPhase(); 
@@ -837,7 +834,7 @@ function render() {
 
         let gridHtml = p.grid.map((c, idx) => {
             let baseColor = getCardColor(CARD_DB[c].type);
-            let bgColor = p.activatedThisTurn.includes(idx) ? '#d3d3d3' : baseColor; // Darker if activated
+            let bgColor = p.activatedThisTurn.includes(idx) ? '#d3d3d3' : baseColor; 
             return `<div class="card" style="background-color: ${bgColor}; border: ${p.activatedThisTurn.includes(idx) ? '1px dashed #333' : '1px solid #aaa'};" onclick="activateGridCard(${idx})"><b>${c}</b><br>${CARD_DB[c].type}</div>`;
         }).join('');
         document.getElementById(`p${i}-grid`).innerHTML = gridHtml;
