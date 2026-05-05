@@ -25,11 +25,13 @@
         .ai-recap-panel { background-color: #e3f2fd; padding: 10px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-top: 10px; border: 1px solid #90caf9;}
         .ai-recap-panel ul { margin: 5px 0; padding-left: 20px; font-family: monospace; font-size: 13px; color: #0d47a1;}
 
+        /* Modal Styles */
         .modal { display: none; position: fixed; z-index: 10; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); }
         .modal-content { background-color: #fff; margin: 5% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 600px; border-radius: 5px; max-height: 80vh; overflow-y: auto;}
         .close { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
         .close:hover { color: black; }
         
+        /* Action Buttons in Modal */
         .action-btn { padding: 10px 20px; margin: 10px; font-size: 16px; border: none; border-radius: 5px; color: white; font-weight: bold;}
         .btn-ap { background-color: #FF9800; }
         .btn-buy { background-color: #2196F3; }
@@ -64,17 +66,17 @@
         <div class="modal-content">
             <span class="close" onclick="document.getElementById('rulesModal').style.display='none'">&times;</span>
             <h2>Game Rules</h2>
-            <p><b>Goal:</b> Reach 20 Autonomy Points (AP) to win!</p>
+            <p><b>Goal:</b> Reach <b>40 Autonomy Points (AP)</b> to win!</p>
             <p><b>Turn Phases:</b></p>
             <ol>
                 <li><b>Main Phase:</b> Play Policies, Technologies, or Biospheres from your hand. Place Energy Sources into your Grid (Max 4 slots).</li>
                 <li><b>Activate Phase:</b> Click Energy Sources in your Grid to activate them. Decide to convert the energy into <b>AP</b> (Victory Points) or <b>Buy Energy</b> (to spend in the Market).</li>
                 <li><b>Buy Phase:</b> Buy cards from the Market using your Buy Energy pool.</li>
-                <li><b>Export Phase:</b> Offer any unspent Buy Energy to your opponent. If they accept, they get the energy for their next turn, and you gain AP! Thermal energy sources are discarded, while Renewables can be kept in the grid. Draw 4 cards for the next turn.</li>
+                <li><b>Export Phase:</b> Offer any unspent Buy Energy to your opponent. If they accept, they must <b>PAY with their own AP (1 AP = 1 Energy)</b>. Thermal energy sources are discarded, while Renewables can be kept in the grid. Draw 4 cards for the next turn.</li>
             </ol>
             <p><b>End Game Conditions:</b></p>
             <ul>
-                <li><b>Win:</b> A player reaches 20 AP.</li>
+                <li><b>Win:</b> A player reaches 40 AP.</li>
                 <li><b>Biosphere Collapse:</b> If a player trashes all 4 of their Biospheres, they suffer a -8 AP penalty and the game ends immediately. The player with the highest AP wins.</li>
                 <li><b>Climate Collapse:</b> If the Global CO2 track reaches 40, the game ends. Players subtract 1 AP for every card in their deck/hand/grid that produces CO2. The highest AP wins.</li>
             </ul>
@@ -121,24 +123,24 @@
 <script>
 const CARD_DB = {
     "Pollution": { type: "Junk", cost: 0 },
-    "Coal Plant": { type: "Energy Source — Thermal", cost: 0, text: "+1 Energy, +1 CO2, +1 Pollution" },
-    "Biosphere Habitat": { type: "Biosphere", cost: 0, text: "Action: Trash self and 1 Pollution from hand." },
+    "Coal Plant": { type: "Energy Source — Thermal", cost: 0, text: "+2 Energy, +1 CO2, +1 Pollution" },
+    "Biosphere Habitat": { type: "Biosphere", cost: 0, text: "Action: Trash self and up to 2 Pollution from hand. Draw 1 card." },
     "Experiments": { type: "Policy", cost: 0, text: "Draw 2 cards. +1 Pollution to discard." },
-    "Offshore Wind Farm": { type: "Energy Source — Renewable", cost: 2, text: "Flip 3. +1 Energy per non-Pollution/non-Thermal card. Permanent. (+1 CO2 on buy)" },
-    "Solar Array": { type: "Energy Source — Renewable", cost: 4, text: "Flip 4. +1 Energy per non-Pollution/non-Thermal card. Permanent. (+1 CO2 on buy)" },
-    "Natural Gas Plant": { type: "Energy Source — Thermal", cost: 3, text: "Produces 2 Energy. +1 CO2." },
-    "Nuclear Power Plant": { type: "Energy Source", cost: 6, text: "Produces 3 Energy. Discard 1 hand card to activate. (+1 CO2 on buy)" },
-    "Battery Storage System": { type: "Technology", cost: 2, text: "Store up to 3 unspent energy. Permanent. (+1 Pollution on buy)" },
-    "Carbon Tax": { type: "Policy", cost: 3, text: "Opponent transfers 1 AP or takes 1 Pollution and +1 CO2." },
-    "Carbon Capture & Reforestation": { type: "Policy", cost: 4, text: "-1 CO2. Move 1 Trashed Biosphere to discard. Draw 1 card." },
+    "Offshore Wind Farm": { type: "Energy Source — Renewable", cost: 3, text: "Flip 3. +1 Energy per non-Pollution/non-Thermal card. Permanent. (+1 CO2 on buy)" },
+    "Solar Array": { type: "Energy Source — Renewable", cost: 5, text: "Flip 5. +1 Energy per non-Pollution/non-Thermal card. Permanent. (+1 CO2 on buy)" },
+    "Natural Gas Plant": { type: "Energy Source — Thermal", cost: 4, text: "Produces 3 Energy. +1 CO2." },
+    "Nuclear Power Plant": { type: "Energy Source", cost: 7, text: "Produces 4 Energy. Discard 1 hand card to activate. (+1 CO2 on buy)" },
+    "Battery Storage System": { type: "Technology", cost: 3, text: "Store up to 3 unspent energy. Permanent. (+1 Pollution on buy)" },
+    "Carbon Tax": { type: "Policy", cost: 4, text: "Opponent transfers 1 AP or takes 1 Pollution and +1 CO2." },
+    "Carbon Capture & Reforestation": { type: "Policy", cost: 5, text: "-1 CO2. Move 1 Trashed Biosphere to discard. Draw 1 card." },
     "Smart Grid Upgrade": { type: "Policy", cost: 5, text: "Play next card from hand twice." },
-    "Intensive farming": { type: "Energy Source - Food", cost: 2, text: "Trash 1 Biosphere from hand to produce 2 Energy." },
-    "Transition Policy": { type: "Policy", cost: 4, text: "Trash up to 2 hand cards. If Thermal or Pollution trashed, draw 2 cards." },
-    "Ocean cleaning robot": { type: "Technology", cost: 5, text: "Trash up to 2 Pollution from hand. +1 CO2. Draw 2 cards." },
-    "Plastic": { type: "Technology", cost: 3, text: "Draw 3 cards. +1 Pollution." },
-    "Waste-to-Energy Plant": { type: "Energy Source — Thermal", cost: 3, text: "Flip 2. Trash revealed Pollution for 1 Energy each. +1 CO2." },
-    "Direct Air Capture Facility": { type: "Technology", cost: 4, text: "Spend up to 3 Buy Energy pool. Move CO2 back 1 space per Energy spent." },
-    "Eco-Tourism": { type: "Policy", cost: 2, text: "Reveal hand. +1 Buy Energy and Draw 1 card for every Biosphere in your hand." }
+    "Intensive farming": { type: "Energy Source - Food", cost: 3, text: "Trash 1 Biosphere from hand to produce 3 Energy." },
+    "Transition Policy": { type: "Policy", cost: 5, text: "Trash up to 2 hand cards. If Thermal or Pollution trashed, draw 2 cards." },
+    "Ocean cleaning robot": { type: "Technology", cost: 6, text: "Trash up to 2 Pollution from hand. +1 CO2. Draw 2 cards." },
+    "Plastic": { type: "Technology", cost: 4, text: "Draw 3 cards. +1 Pollution." },
+    "Waste-to-Energy Plant": { type: "Energy Source — Thermal", cost: 4, text: "Flip 3. Trash revealed Pollution for 2 Energy each. +1 CO2." },
+    "Direct Air Capture Facility": { type: "Technology", cost: 5, text: "Spend up to 3 Buy Energy pool. Move CO2 back 1 space per Energy spent." },
+    "Eco-Tourism": { type: "Policy", cost: 3, text: "Reveal hand. +1 Buy Energy and Draw 1 card for every Biosphere in your hand." }
 };
 
 const ALL_MARKET_CARDS = [
@@ -176,7 +178,6 @@ function startGame(isAI) {
     isGameOver = false;
     document.getElementById('gamelog').innerHTML = "Game Started.";
     
-    // Fix: Shuffle pool first, pick 8, then sort the selected 8 by cost.
     let shuffledPool = [...ALL_MARKET_CARDS];
     shuffle(shuffledPool);
     let selectedMarket = shuffledPool.slice(0, 8);
@@ -258,7 +259,6 @@ function checkCatastrophes() {
             state.catastrophes.push(thresholds[i]);
             let catIndex = state.catastropheOrder[i];
             
-            // Fix: Show alert regardless of whose turn it is
             alert(`🚨 WARNING: CATASTROPHE TRIGGERED! 🚨\n\nCO2 reached level ${thresholds[i]}.\nEffect: ${events[catIndex]}`);
             log(`<b>CATASTROPHE!</b> ${events[catIndex]}`);
             
@@ -311,7 +311,7 @@ function checkBiosphereLoss(p) {
 }
 
 function checkWin() {
-    state.players.forEach(p => { if(p.ap >= 20) triggerEndGame(`Player ${p.id+1} reached 20 AP!`); });
+    state.players.forEach(p => { if(p.ap >= 40) triggerEndGame(`Player ${p.id+1} reached 40 AP!`); });
 }
 
 function triggerEndGame(reason) {
@@ -380,12 +380,13 @@ function executePolicy(cardName, p) {
     } else if(cardName === "Biosphere Habitat") {
         let pC = 0;
         for(let i=p.hand.length-1; i>=0; i--) {
-            if(p.hand[i] === "Pollution" && pC < 1) { 
+            if(p.hand[i] === "Pollution" && pC < 2) { 
                 p.trashed.push(p.hand.splice(i, 1)[0]); 
                 pC++; 
             }
         }
-        log(`Trashed self and ${pC} Pollution card(s).`);
+        log(`Trashed self and ${pC} Pollution cards.`);
+        drawCards(p.id, 1);
         trashedSelf = true;
     } else if(cardName === "Carbon Tax") {
         let accepted = false;
@@ -473,9 +474,9 @@ function activateGridCard(gridIdx) {
     let energyGen = 0;
 
     if(cardName === "Coal Plant") {
-        energyGen = 1; addCO2(1); p.discard.push("Pollution");
+        energyGen = 2; addCO2(1); p.discard.push("Pollution");
     } else if(cardName === "Natural Gas Plant") {
-        energyGen = 2; addCO2(1);
+        energyGen = 3; addCO2(1);
     } else if(cardName === "Offshore Wind Farm") {
         let revealed = [];
         for(let i=0; i<3; i++) {
@@ -490,7 +491,7 @@ function activateGridCard(gridIdx) {
         log(`Wind Farm revealed: [${revealed.join(", ")}]. Generated ${energyGen} energy.`);
     } else if(cardName === "Solar Array") {
         let revealed = [];
-        for(let i=0; i<4; i++) {
+        for(let i=0; i<5; i++) {
             if(p.deck.length===0 && p.discard.length>0) { p.deck=[...p.discard]; p.discard=[]; shuffle(p.deck); }
             if(p.deck.length>0) revealed.push(p.deck.pop());
         }
@@ -504,7 +505,7 @@ function activateGridCard(gridIdx) {
         let choice = prompt(`To activate Nuclear, type a card from hand to discard: ${p.hand.join(", ")}`);
         if(p.hand.includes(choice)) {
             p.discard.push(p.hand.splice(p.hand.indexOf(choice), 1)[0]);
-            energyGen = 3;
+            energyGen = 4;
         } else {
             if(!(state.isPvE && p.id === 1)) alert("Invalid choice.");
             return;
@@ -512,7 +513,7 @@ function activateGridCard(gridIdx) {
     } else if(cardName === "Intensive farming") {
         if(p.hand.includes("Biosphere Habitat")) {
             p.trashed.push(p.hand.splice(p.hand.indexOf("Biosphere Habitat"), 1)[0]);
-            energyGen = 2;
+            energyGen = 3;
         } else { 
             if(!(state.isPvE && p.id === 1)) alert("Need Biosphere in hand to trash."); 
             return; 
@@ -520,7 +521,7 @@ function activateGridCard(gridIdx) {
     } else if(cardName === "Waste-to-Energy Plant") {
         let revealed = [];
         let polCount = 0;
-        for(let i=0; i<2; i++) {
+        for(let i=0; i<3; i++) {
             if(p.deck.length===0 && p.discard.length>0) { p.deck=[...p.discard]; p.discard=[]; shuffle(p.deck); }
             if(p.deck.length>0) revealed.push(p.deck.pop());
         }
@@ -532,7 +533,7 @@ function activateGridCard(gridIdx) {
                 p.discard.push(c);
             }
         });
-        energyGen = polCount * 1;
+        energyGen = polCount * 2;
         addCO2(1);
         log(`Waste-to-Energy flipped: [${revealed.length > 0 ? revealed.join(", ") : "Nothing"}]. Trashed ${polCount} Pollution.`);
     } else if(cardName === "Battery Storage System") {
@@ -635,23 +636,32 @@ function nextPhase() {
             if (state.isPvE && p.id === 1) { 
                 offered = true; 
             } else {
-                offered = confirm(`Player ${p.id+1}: Do you want to offer your ${remaining} spare energy to Player ${opp.id+1} for AP?`);
+                offered = confirm(`Player ${p.id+1}: Do you want to offer your ${remaining} spare energy to Player ${opp.id+1} in exchange for their AP? (1 Energy = 1 AP)`);
             }
 
             if(offered) {
-                let accepted = false;
+                let buyAmount = 0;
                 if(state.isPvE && opp.id === 1) { 
-                    accepted = true; 
+                    // AI buys if it has AP, up to 2 energy max to simulate strategy
+                    buyAmount = Math.min(opp.ap, remaining, Math.floor(Math.random() * 3));
                 } else {
-                    accepted = confirm(`Player ${opp.id+1}: Accept ${remaining} spare energy from Player ${p.id+1}? (They get ${remaining} AP)`);
+                    let maxBuy = Math.min(remaining, opp.ap);
+                    if (maxBuy > 0) {
+                        let ans = prompt(`Player ${opp.id+1}: Player ${p.id+1} offers ${remaining} energy.\nYou have ${opp.ap} AP. How much energy do you want to buy for 1 AP each? (0-${maxBuy})`, "0");
+                        buyAmount = parseInt(ans) || 0;
+                        buyAmount = Math.max(0, Math.min(buyAmount, maxBuy));
+                    } else {
+                        alert(`Player ${opp.id+1}: Player ${p.id+1} offered energy, but you have 0 AP to pay for it.`);
+                    }
                 }
 
-                if(accepted) {
-                    opp.energyPool += remaining;
-                    p.ap += remaining;
-                    log(`Player ${opp.id+1} accepted ${remaining} energy. Player ${p.id+1} gets ${remaining} AP.`);
+                if(buyAmount > 0) {
+                    opp.ap -= buyAmount;
+                    p.ap += buyAmount;
+                    opp.energyPool += buyAmount;
+                    log(`Player ${opp.id+1} bought ${buyAmount} energy. Player ${p.id+1} gets ${buyAmount} AP.`);
                 } else {
-                    log(`Player ${opp.id+1} rejected energy. It is wasted.`);
+                    log(`Player ${opp.id+1} rejected or couldn't afford the energy. It is wasted.`);
                 }
             } else {
                 log(`Player ${p.id+1} chose to waste their spare energy.`);
