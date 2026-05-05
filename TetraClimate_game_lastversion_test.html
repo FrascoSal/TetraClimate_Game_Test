@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Sustainability Deck Builder</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 10px; background-color: #f4f4f9; display: flex; flex-direction: column; height: 95vh;}
+        h1, h2, h3 { margin: 5px 0; }
+        button { cursor: pointer; padding: 5px 10px; margin: 2px; border-radius: 3px; border: 1px solid #ccc; font-size: 13px;}
+        button:hover { background-color: #ddd; }
+        .board { display: flex; flex: 1; gap: 10px; }
+        .panel { background: white; padding: 10px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); flex: 1; overflow-y: auto; border: 2px solid transparent;}
+        .active-player { border-color: #4CAF50; background-color: #f0fdf0; }
+        .market { flex: 1; background: #eef; }
+        .card { border: 1px solid #aaa; padding: 5px; margin: 5px 0; cursor: pointer; border-radius: 4px; font-size: 13px; color: #111;}
+        .card:hover { filter: brightness(0.95); box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+        .stats { font-weight: bold; margin-bottom: 10px; color: #333; }
+        .grid-area, .hand-area { min-height: 100px; border: 1px dashed #aaa; padding: 5px; margin-bottom: 10px; border-radius: 4px;}
+        .log { height: 120px; overflow-y: scroll; background: #222; color: #4CAF50; padding: 8px; font-family: monospace; font-size: 13px; margin-top: 10px; border-radius: 5px; border: 2px solid #555;}
+        .controls { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+        .btn-pve { background-color: #2196F3; color: white; border: none; font-weight: bold;}
+        .btn-pvp { background-color: #4CAF50; color: white; border: none; font-weight: bold;}
+        .btn-rules { background-color: #FF9800; color: white; border: none; font-weight: bold;}
+        
+        .ai-recap-panel { background-color: #e3f2fd; padding: 10px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-top: 10px; border: 1px solid #90caf9;}
+        .ai-recap-panel ul { margin: 5px 0; padding-left: 20px; font-family: monospace; font-size: 13px; color: #0d47a1;}
+
+        /* Modal Styles */
+        .modal { display: none; position: fixed; z-index: 10; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); }
+        .modal-content { background-color: #fff; margin: 5% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 600px; border-radius: 5px; max-height: 80vh; overflow-y: auto;}
+        .close { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
+        .close:hover { color: black; }
+        
+        /* Action Buttons in Modal */
+        .action-btn { padding: 10px 20px; margin: 10px; font-size: 16px; border: none; border-radius: 5px; color: white; font-weight: bold;}
+        .btn-ap { background-color: #FF9800; }
+        .btn-buy { background-color: #2196F3; }
+        .btn-ap:hover { background-color: #e68a00; }
+        .btn-buy:hover { background-color: #1976D2; }
+    </style>
+</head>
+<body>
+
+    <div>
+        <h2>Global CO2: <span id="co2-level">0</span>/40</h2>
+        <div class="controls">
+            <span id="phase-info" style="font-weight: bold; font-size: 16px; color: #333;">Phase: Main (Play Cards & Place to Grid)</span>
+            <button onclick="prevPhase()">Previous Phase</button>
+            <button onclick="nextPhase()">Next Phase</button>
+            <button class="btn-pvp" onclick="startGame(false)">New Game (PvP)</button>
+            <button class="btn-pve" onclick="startGame(true)">New Game (vs AI)</button>
+            <button class="btn-rules" onclick="document.getElementById('rulesModal').style.display='block'">Read Rules</button>
+        </div>
+    </div>
+
+    <div id="activationModal" class="modal" style="z-index: 20;">
+        <div class="modal-content" style="text-align: center; max-width: 400px; margin-top: 15%;">
+            <h2 style="color: #333;">Energy Generated!</h2>
+            <p id="activation-msg" style="font-size: 16px;"></p>
+            <button class="action-btn btn-ap" onclick="resolveActivation('AP')">Convert to AP (Points)</button>
+            <button class="action-btn btn-buy" onclick="resolveActivation('BUY')">Add to Buy Pool (Market)</button>
+        </div>
+    </div>
+
+    <div id="rulesModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="document.getElementById('rulesModal').style.display='none'">&times;</span>
+            <h2>Game Rules</h2>
+            <p><b>Goal:</b> Reach 20 Autonomy Points (AP) to win!</p>
+            <p><b>Turn Phases:</b></p>
+            <ol>
+                <li><b>Main Phase:</b> Play Policies, Technologies, or Biospheres from your hand. Place Energy Sources into your Grid (Max 4 slots).</li>
+                <li><b>Activate Phase:</b> Click Energy Sources in your Grid to activate them. Decide to convert the energy into <b>AP</b> (Victory Points) or <b>Buy Energy</b> (to spend in the Market).</li>
+                <li><b>Buy Phase:</b> Buy cards from the Market using your Buy Energy pool.</li>
+                <li><b>Export Phase:</b> Offer any unspent Buy Energy to your opponent. If they accept, they get the energy for their next turn, and you gain AP! Thermal energy sources are discarded, while Renewables can be kept in the grid. Draw 4 cards for the next turn.</li>
+            </ol>
+            <p><b>End Game Conditions:</b></p>
+            <ul>
+                <li><b>Win:</b> A player reaches 20 AP.</li>
+                <li><b>Biosphere Collapse:</b> If a player trashes all 4 of their Biospheres, they suffer a -8 AP penalty and the game ends immediately. The player with the highest AP wins.</li>
+                <li><b>Climate Collapse:</b> If the Global CO2 track reaches 40, the game ends. Players subtract 1 AP for every card in their deck/hand/grid that produces CO2. The highest AP wins.</li>
+            </ul>
+            <p><b>Catastrophes:</b> At 10, 20, 30, and 40 CO2, a randomized catastrophe triggers, forcing players to discard hands, grid cards, or trash biospheres!</p>
+        </div>
+    </div>
+
+    <div class="board">
+        <div id="p0-panel" class="panel">
+            <h3>Player 1</h3>
+            <div class="stats">AP: <span id="p0-ap">0</span> | Buy Energy: <span id="p0-energy">0</span> | Battery: <span id="p0-battery">0</span>/3</div>
+            <div>Deck: <span id="p0-deck"></span> | Discard: <span id="p0-discard"></span> | Trashed: <span id="p0-trashed"></span></div>
+            <h4>Grid (Max 4)</h4>
+            <div id="p0-grid" class="grid-area"></div>
+            <h4>Hand</h4>
+            <div id="p0-hand" class="hand-area"></div>
+        </div>
+
+        <div class="panel market">
+            <h3>Market</h3>
+            <div id="market-area"></div>
+        </div>
+
+        <div id="p1-panel" class="panel">
+            <h3>Player 2 <span id="ai-badge" style="display:none; color: #2196F3;">(AI)</span></h3>
+            <div class="stats">AP: <span id="p1-ap">0</span> | Buy Energy: <span id="p1-energy">0</span> | Battery: <span id="p1-battery">0</span>/3</div>
+            <div>Deck: <span id="p1-deck"></span> | Discard: <span id="p1-discard"></span> | Trashed: <span id="p1-trashed"></span></div>
+            <h4>Grid (Max 4)</h4>
+            <div id="p1-grid" class="grid-area"></div>
+            <h4>Hand</h4>
+            <div id="p1-hand" class="hand-area"></div>
+        </div>
+    </div>
+    
+    <div class="ai-recap-panel" id="ai-recap-container" style="display:none;">
+        <h3 style="margin:0 0 5px 0; color:#0277bd;">AI Previous Turn Recap</h3>
+        <ul id="ai-recap-list">
+            <li>Waiting for AI turn...</li>
+        </ul>
+    </div>
+
+    <div class="log" id="gamelog">Game started. Player 1's turn.</div>
+
+<script>
+const CARD_DB = {
+    "Pollution": { type: "Junk", cost: 0 },
+    "Coal Plant": { type: "Energy Source — Thermal", cost: 0, text: "+2 Energy, +1 CO2, +1 Pollution" },
+    "Biosphere Habitat": { type: "Biosphere", cost: 0, text: "Action: Trash self to remove up to 3 Pollution from hand. Draw 1 card." },
+    "Experiments": { type: "Policy", cost: 0, text: "Draw 2 cards. +1 Pollution to discard." },
+    "Offshore Wind Farm": { type: "Energy Source — Renewable", cost: 3, text: "Flip 3. +1 Energy per non-Pollution/non-Thermal card. Permanent. (+1 CO2 on buy)" },
+    "Solar Array": { type: "Energy Source — Renewable", cost: 5, text: "Flip 5. +1 Energy per non-Pollution/non-Thermal card. Permanent. (+1 CO2 on buy)" },
+    "Natural Gas Plant": { type: "Energy Source — Thermal", cost: 4, text: "Produces 3 Energy. +1 CO2." },
+    "Nuclear Power Plant": { type: "Energy Source", cost: 7, text: "Produces 4 Energy. Discard 1 hand card to activate. (+1 CO2 on buy)" },
+    "Battery Storage System": { type: "Technology", cost: 3, text: "Store up to 3 unspent energy. Permanent. (+1 Pollution on buy)" },
+    "Carbon Tax": { type: "Policy", cost: 4, text: "Opponent transfers 1 AP or takes 1 Pollution and +1 CO2." },
+    "Carbon Capture & Reforestation": { type: "Policy", cost: 5, text: "-1 CO2. Move 1 Trashed Biosphere to discard. Draw 1 card." },
+    "Smart Grid Upgrade": { type: "Policy", cost: 6, text: "Play next card from hand twice." },
+    "Intensive farming": { type: "Energy Source - Food", cost: 3, text: "Trash 1 Biosphere from hand to produce 3 Energy." },
+    "Transition Policy": { type: "Policy", cost: 5, text: "Trash up to 2 hand cards. If Thermal or Pollution trashed, draw 2 cards." },
+    "Ocean cleaning robot": { type: "Technology", cost: 6, text: "Trash up to 2 Pollution from hand. +1 CO2. Draw 2 cards." },
+    "Plastic": { type: "Technology", cost: 4, text: "Draw 3 cards. +1 Pollution." },
+    "Waste-to-Energy Plant": { type: "Energy Source — Thermal", cost: 4, text: "Flip 3. Trash revealed Pollution for 2 Energy each. +1 CO2." },
+    "Direct Air Capture Facility": { type: "Technology", cost: 5, text: "Spend up to 3 Buy Energy pool. Move CO2 back 1 space per Energy spent." },
+    "Eco-Tourism": { type: "Policy", cost: 3, text: "Reveal hand. +1 Buy Energy and Draw 1 card for every Biosphere in your hand." }
+};
+
+const ALL_MARKET_CARDS = [
+    "Offshore Wind Farm", "Solar Array", "Natural Gas Plant", "Nuclear Power Plant", 
+    "Battery Storage System", "Carbon Tax", "Carbon Capture & Reforestation", "Smart Grid Upgrade", 
+    "Intensive farming", "Transition Policy", "Ocean cleaning robot", "Plastic",
+    "Waste-to-Energy Plant", "Direct Air Capture Facility", "Eco-Tourism"
+];
+
+let state = {};
+let isGameOver = false;
+
+function getCardColor(type) {
+    if (type.includes("Biosphere")) return "#e8f5e9"; // Light Green
+    if (type.includes("Junk") || type.includes("Pollution")) return "#f3e5f5"; // Light Purple
+    if (type.includes("Policy") || type.includes("Technology")) return "#f5f5f5"; // Light Grey
+    if (type.includes("Energy Source")) return "#efebe9"; // Light Brown
+    return "#ffffff";
+}
+
+function log(msg) {
+    const l = document.getElementById('gamelog');
+    l.innerHTML += `<div>${msg}</div>`;
+    l.scrollTop = l.scrollHeight;
+}
+
+function shuffle(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+}
+
+function startGame(isAI) {
+    isGameOver = false;
+    document.getElementById('gamelog').innerHTML = "Game Started.";
+    
+    let selectedMarket = [...ALL_MARKET_CARDS];
+    shuffle(selectedMarket);
+    selectedMarket = selectedMarket.slice(0, 8);
+    // Sort market from cheapest to most expensive
+    selectedMarket.sort((a,b) => CARD_DB[a].cost - CARD_DB[b].cost);
+    
+    let cats = [0, 1, 2, 3];
+    shuffle(cats);
+
+    state = {
+        isPvE: isAI,
+        co2: 0,
+        catastrophes: [],
+        catastropheOrder: cats,
+        market: selectedMarket.map(name => ({ name: name, count: 4 })),
+        activeP: 0,
+        phase: 0, 
+        players: [],
+        playTwice: false,
+        aiRecap: [],
+        pendingEnergy: 0 // Used for the modal buttons
+    };
+
+    document.getElementById('ai-badge').style.display = isAI ? 'inline' : 'none';
+    document.getElementById('ai-recap-container').style.display = isAI ? 'block' : 'none';
+    document.getElementById('ai-recap-list').innerHTML = "<li>Waiting for AI turn...</li>";
+
+    for(let i=0; i<2; i++) {
+        let deck = ["Experiments"];
+        for(let j=0; j<4; j++) deck.push("Biosphere Habitat");
+        for(let j=0; j<3; j++) deck.push("Coal Plant");
+        shuffle(deck);
+        state.players.push({
+            id: i, ap: 0, energyPool: 0, battery: 0,
+            deck: deck, hand: [], discard: [], grid: [], trashed: [],
+            activatedThisTurn: []
+        });
+        drawCards(i, 4);
+    }
+    render();
+}
+
+function drawCards(pIdx, num) {
+    if(isGameOver) return;
+    let p = state.players[pIdx];
+    for(let i=0; i<num; i++) {
+        if(p.deck.length === 0) {
+            if(p.discard.length === 0) {
+                log(`Player ${pIdx+1} has no more cards to draw!`);
+                break;
+            }
+            p.deck = [...p.discard]; 
+            p.discard = [];
+            shuffle(p.deck);
+            log(`Player ${pIdx+1} reshuffles discard into deck.`);
+        }
+        if(p.deck.length > 0) {
+            p.hand.push(p.deck.pop());
+        }
+    }
+}
+
+function addCO2(amount) {
+    if(isGameOver) return;
+    state.co2 += amount;
+    log(`Global CO2 increases by ${amount}. Total: ${state.co2}`);
+    checkCatastrophes();
+    if(state.co2 >= 40) triggerEndGame("CO2 limit reached!");
+}
+
+function checkCatastrophes() {
+    let thresholds = [10, 20, 30, 40];
+    let events = ["Heatwave (All players discard all energy cards from hand and grid)", "Hurricane (All players discard hand and draw 1)", "Drought (Reveal 5, trash 1 Biosphere)", "Flood (Trash highest cost energy card from hand or grid)"];
+    
+    for(let i=0; i<thresholds.length; i++) {
+        if(state.co2 >= thresholds[i] && !state.catastrophes.includes(thresholds[i])) {
+            state.catastrophes.push(thresholds[i]);
+            let catIndex = state.catastropheOrder[i];
+            
+            // Strong warning for Humans
+            if(!(state.isPvE && state.activeP === 1)) {
+                alert(`🚨 WARNING: CATASTROPHE TRIGGERED! 🚨\n\nCO2 reached level ${thresholds[i]}.\nEffect: ${events[catIndex]}`);
+            }
+            log(`<b>CATASTROPHE!</b> ${events[catIndex]}`);
+            applyCatastrophe(catIndex);
+        }
+    }
+}
+
+function applyCatastrophe(index) {
+    state.players.forEach(p => {
+        if(index === 0) { // Heatwave
+            p.hand = p.hand.filter(c => !CARD_DB[c].type.includes("Energy Source"));
+            p.grid = p.grid.filter(c => !CARD_DB[c].type.includes("Energy Source"));
+        } else if(index === 1) { // Hurricane
+            p.discard.push(...p.hand);
+            p.hand = [];
+            drawCards(p.id, 1);
+        } else if(index === 2) { // Drought
+            let revealed = [];
+            for(let k=0; k<5; k++) {
+                if(p.deck.length===0 && p.discard.length>0) { p.deck=[...p.discard]; p.discard=[]; shuffle(p.deck); }
+                if(p.deck.length>0) revealed.push(p.deck.pop());
+            }
+            let bioIdx = revealed.indexOf("Biosphere Habitat");
+            if(bioIdx > -1) {
+                p.trashed.push(revealed.splice(bioIdx, 1)[0]);
+                log(`Player ${p.id+1} lost a Biosphere to Drought.`);
+            }
+            p.discard.push(...revealed);
+        } else if(index === 3) { // Flood
+            let allEng = [...p.hand, ...p.grid].filter(c => CARD_DB[c].type.includes("Energy Source"));
+            if(allEng.length > 0) {
+                allEng.sort((a,b) => CARD_DB[b].cost - CARD_DB[a].cost);
+                let target = allEng[0];
+                if(p.hand.includes(target)) p.hand.splice(p.hand.indexOf(target), 1);
+                else p.grid.splice(p.grid.indexOf(target), 1);
+                log(`Player ${p.id+1} lost ${target} to Flood.`);
+            }
+        }
+    });
+}
+
+function checkBiosphereLoss(p) {
+    if(isGameOver) return;
+    let trashedBios = p.trashed.filter(c => c === "Biosphere Habitat").length;
+    if(trashedBios >= 4) {
+        p.ap -= 8;
+        triggerEndGame(`Player ${p.id+1} lost all Biospheres!`);
+    }
+}
+
+function checkWin() {
+    state.players.forEach(p => { if(p.ap >= 20) triggerEndGame(`Player ${p.id+1} reached 20 AP!`); });
+}
+
+function triggerEndGame(reason) {
+    if(isGameOver) return;
+    isGameOver = true;
+    
+    log(`<b>GAME OVER:</b> ${reason}`);
+    let scores = state.players.map(p => {
+        let penalty = 0;
+        if(state.co2 >= 40) {
+            let allCards = [...p.deck, ...p.hand, ...p.discard, ...p.grid];
+            allCards.forEach(c => {
+                if(CARD_DB[c].text && CARD_DB[c].text.includes("CO2")) penalty++;
+            });
+        }
+        return p.ap - penalty;
+    });
+    
+    setTimeout(() => {
+        alert(`GAME OVER: ${reason}\nPlayer 1 Final AP: ${scores[0]}\nPlayer 2 Final AP: ${scores[1]}`);
+        location.reload();
+    }, 200);
+}
+
+function playCardFromHand(cardIdx) {
+    if(isGameOver) return;
+    if(state.phase !== 0) return alert("You can only play cards in the Main phase.");
+    let p = state.players[state.activeP];
+    let cardName = p.hand[cardIdx];
+    let cardInfo = CARD_DB[cardName];
+
+    let times = state.playTwice ? 2 : 1;
+    state.playTwice = false;
+
+    let playedCard = p.hand.splice(cardIdx, 1)[0];
+
+    for(let t=0; t<times; t++) {
+        if(cardInfo.type.includes("Energy Source") || cardName === "Battery Storage System") {
+            if(p.grid.length >= 4) {
+                p.hand.push(playedCard); 
+                return alert("Grid is full!");
+            }
+            if(t===0) {
+                p.grid.push(playedCard);
+                log(`Player ${p.id+1} placed ${cardName} on Grid.`);
+            }
+        } else {
+            let isTrashed = executePolicy(cardName, p);
+            if(t===0) {
+                if(isTrashed) p.trashed.push(playedCard);
+                else p.discard.push(playedCard);
+            }
+        }
+    }
+    render();
+}
+
+function executePolicy(cardName, p) {
+    let opp = state.players[p.id === 0 ? 1 : 0];
+    log(`Player ${p.id+1} plays ${cardName}.`);
+    let trashedSelf = false;
+    
+    if(cardName === "Experiments") {
+        drawCards(p.id, 2);
+        p.discard.push("Pollution");
+    } else if(cardName === "Biosphere Habitat") {
+        let pC = 0;
+        for(let i=p.hand.length-1; i>=0; i--) {
+            if(p.hand[i] === "Pollution" && pC < 3) { 
+                p.trashed.push(p.hand.splice(i, 1)[0]); 
+                pC++; 
+            }
+        }
+        log(`Trashed self and ${pC} Pollution cards.`);
+        drawCards(p.id, 1);
+        trashedSelf = true;
+    } else if(cardName === "Carbon Tax") {
+        let accepted = false;
+        if(state.isPvE && opp.id === 1) {
+            accepted = true; 
+        } else {
+            accepted = confirm(`Player ${opp.id+1}: Transfer 1 AP to Player ${p.id+1}? Cancel takes +1 Pollution, +1 CO2.`);
+        }
+
+        if(accepted) {
+            if(opp.ap > 0) { 
+                opp.ap--; p.ap++; log(`Player ${opp.id+1} paid 1 AP.`);
+            } else {
+                if(!(state.isPvE && p.id === 1)) alert(`Player ${opp.id+1} has 0 AP! Penalty applied instead.`);
+                opp.discard.push("Pollution"); addCO2(1);
+            }
+        } else {
+            opp.discard.push("Pollution");
+            addCO2(1);
+        }
+    } else if(cardName === "Carbon Capture & Reforestation") {
+        if(state.co2 > 0) state.co2--;
+        if(p.trashed.includes("Biosphere Habitat")) {
+            p.trashed.splice(p.trashed.indexOf("Biosphere Habitat"), 1);
+            p.discard.push("Biosphere Habitat");
+        }
+        drawCards(p.id, 1);
+    } else if(cardName === "Smart Grid Upgrade") {
+        state.playTwice = true;
+    } else if(cardName === "Transition Policy") {
+        let trashedTrigger = false;
+        for(let i=0; i<2; i++) {
+            let choice = prompt(`Type name of card to trash (or cancel) [Cards in hand: ${p.hand.join(", ")}]`);
+            if(choice && p.hand.includes(choice)) {
+                if(CARD_DB[choice].type.includes("Thermal") || choice === "Pollution") trashedTrigger = true;
+                p.trashed.push(p.hand.splice(p.hand.indexOf(choice), 1)[0]);
+            }
+        }
+        if(trashedTrigger) drawCards(p.id, 2);
+    } else if(cardName === "Ocean cleaning robot") {
+        let pC = 0;
+        for(let i=p.hand.length-1; i>=0; i--) {
+            if(p.hand[i] === "Pollution" && pC < 2) { 
+                p.trashed.push(p.hand.splice(i, 1)[0]); 
+                pC++; 
+            }
+        }
+        log(`Trashed ${pC} Pollution cards via Ocean cleaning robot.`);
+        addCO2(1);
+        drawCards(p.id, 2);
+    } else if(cardName === "Plastic") {
+        drawCards(p.id, 3);
+        p.discard.push("Pollution");
+    } else if(cardName === "Direct Air Capture Facility") {
+        let maxSpend = Math.min(3, p.energyPool);
+        if(maxSpend > 0) {
+            let spend = parseInt(prompt(`You have ${p.energyPool} Buy Energy available.\nSpend how much (0-${maxSpend}) to reduce CO2?`, "0")) || 0;
+            spend = Math.max(0, Math.min(spend, maxSpend));
+            if(spend > 0) {
+                p.energyPool -= spend;
+                state.co2 = Math.max(0, state.co2 - spend);
+                log(`Spent ${spend} Energy to reduce CO2 by ${spend}.`);
+            }
+        } else {
+            if(!(state.isPvE && p.id === 1)) alert("You have no Buy Energy to spend right now!");
+            log("Played Direct Air Capture with 0 Buy Energy.");
+        }
+    } else if(cardName === "Eco-Tourism") {
+        let bioCount = p.hand.filter(c => c === "Biosphere Habitat").length;
+        p.energyPool += bioCount;
+        if(bioCount > 0) drawCards(p.id, bioCount);
+        log(`Eco-Tourism revealed ${bioCount} Biospheres. Gained ${bioCount} Energy and drew ${bioCount} cards.`);
+    }
+
+    return trashedSelf;
+}
+
+function activateGridCard(gridIdx) {
+    if(isGameOver) return;
+    if(state.phase !== 1) return alert("Must be in Activation phase.");
+    let p = state.players[state.activeP];
+    if(p.activatedThisTurn.includes(gridIdx)) return alert("Already activated.");
+    
+    let cardName = p.grid[gridIdx];
+    let energyGen = 0;
+
+    if(cardName === "Coal Plant") {
+        energyGen = 2; addCO2(1); p.discard.push("Pollution");
+    } else if(cardName === "Natural Gas Plant") {
+        energyGen = 3; addCO2(1);
+    } else if(cardName === "Offshore Wind Farm") {
+        let revealed = [];
+        for(let i=0; i<3; i++) {
+            if(p.deck.length===0 && p.discard.length>0) { p.deck=[...p.discard]; p.discard=[]; shuffle(p.deck); }
+            if(p.deck.length>0) revealed.push(p.deck.pop());
+        }
+        revealed.forEach(c => { 
+            let t = CARD_DB[c].type;
+            if(!t.includes("Junk") && !t.includes("Thermal")) energyGen++; 
+        });
+        p.discard.push(...revealed);
+        log(`Wind Farm generated ${energyGen} energy.`);
+    } else if(cardName === "Solar Array") {
+        let revealed = [];
+        for(let i=0; i<5; i++) {
+            if(p.deck.length===0 && p.discard.length>0) { p.deck=[...p.discard]; p.discard=[]; shuffle(p.deck); }
+            if(p.deck.length>0) revealed.push(p.deck.pop());
+        }
+        revealed.forEach(c => { 
+            let t = CARD_DB[c].type;
+            if(!t.includes("Junk") && !t.includes("Thermal")) energyGen++; 
+        });
+        p.discard.push(...revealed);
+        log(`Solar Array generated ${energyGen} energy.`);
+    } else if(cardName === "Nuclear Power Plant") {
+        let choice = prompt(`To activate Nuclear, type a card from hand to discard: ${p.hand.join(", ")}`);
+        if(p.hand.includes(choice)) {
+            p.discard.push(p.hand.splice(p.hand.indexOf(choice), 1)[0]);
+            energyGen = 4;
+        } else {
+            if(!(state.isPvE && p.id === 1)) alert("Invalid choice.");
+            return;
+        }
+    } else if(cardName === "Intensive farming") {
+        if(p.hand.includes("Biosphere Habitat")) {
+            p.trashed.push(p.hand.splice(p.hand.indexOf("Biosphere Habitat"), 1)[0]);
+            energyGen = 3;
+        } else { 
+            if(!(state.isPvE && p.id === 1)) alert("Need Biosphere in hand to trash."); 
+            return; 
+        }
+    } else if(cardName === "Waste-to-Energy Plant") {
+        let revealed = [];
+        let polCount = 0;
+        for(let i=0; i<3; i++) {
+            if(p.deck.length===0 && p.discard.length>0) { p.deck=[...p.discard]; p.discard=[]; shuffle(p.deck); }
+            if(p.deck.length>0) revealed.push(p.deck.pop());
+        }
+        revealed.forEach(c => { 
+            if(c === "Pollution") {
+                polCount++;
+                p.trashed.push(c);
+            } else {
+                p.discard.push(c);
+            }
+        });
+        energyGen = polCount * 2;
+        addCO2(1);
+        log(`Waste-to-Energy Plant generated ${energyGen} energy and trashed ${polCount} Pollution.`);
+    } else if(cardName === "Battery Storage System") {
+        if(!(state.isPvE && p.id === 1)) alert("Battery is passive.");
+        return;
+    }
+
+    p.activatedThisTurn.push(gridIdx);
+
+    if(energyGen > 0) {
+        if(state.isPvE && p.id === 1) {
+            // AI auto-resolves energy
+            let choice = Math.random() > 0.4 ? 'BUY' : 'AP';
+            if(choice === 'AP') { p.ap += energyGen; log(`Converted ${energyGen} energy to AP.`); }
+            else { p.energyPool += energyGen; log(`Added ${energyGen} to Buy Pool.`); }
+            render();
+        } else {
+            // Human gets button overlay
+            state.pendingEnergy = energyGen;
+            document.getElementById('activation-msg').innerText = `You generated ${energyGen} Energy. What would you like to do?`;
+            document.getElementById('activationModal').style.display = 'block';
+        }
+    } else {
+        render();
+    }
+}
+
+function resolveActivation(choice) {
+    let p = state.players[state.activeP];
+    let energyGen = state.pendingEnergy;
+    
+    if(choice === 'AP') {
+        p.ap += energyGen;
+        log(`Converted ${energyGen} energy to AP.`);
+    } else {
+        p.energyPool += energyGen;
+        log(`Added ${energyGen} to Buy Pool.`);
+    }
+    
+    state.pendingEnergy = 0;
+    document.getElementById('activationModal').style.display = 'none';
+    render();
+}
+
+function buyCard(mIdx) {
+    if(isGameOver) return;
+    if(state.phase !== 2) return alert("Must be in Buy phase.");
+    let p = state.players[state.activeP];
+    let mk = state.market[mIdx];
+    if(mk.count <= 0) return;
+    
+    let cost = CARD_DB[mk.name].cost;
+    let avail = p.energyPool + p.battery;
+
+    if(avail >= cost) {
+        let usePool = Math.min(p.energyPool, cost);
+        p.energyPool -= usePool;
+        p.battery -= (cost - usePool);
+        
+        mk.count--;
+        p.discard.push(mk.name);
+        log(`Player ${p.id+1} bought ${mk.name}.`);
+
+        if(mk.name === "Offshore Wind Farm" || mk.name === "Solar Array" || mk.name === "Nuclear Power Plant" || mk.name === "Waste-to-Energy Plant") addCO2(1);
+        if(mk.name === "Battery Storage System") p.discard.push("Pollution");
+        
+        render();
+    } else {
+        alert("Not enough energy.");
+    }
+}
+
+function prevPhase() {
+    if(isGameOver) return;
+    if(state.phase > 0) {
+        state.phase--;
+        log(`Player returned to previous phase.`);
+        render();
+    } else {
+        alert("You are already at the first phase of your turn.");
+    }
+}
+
+function nextPhase() {
+    if(isGameOver) return;
+    state.phase++;
+    let p = state.players[state.activeP];
+    
+    if(state.phase === 3) {
+        let opp = state.players[state.activeP === 0 ? 1 : 0];
+        let remaining = p.energyPool;
+        
+        if(p.grid.includes("Battery Storage System") && p.battery < 3 && remaining > 0) {
+            let toStore = Math.min(3 - p.battery, remaining);
+            p.battery += toStore;
+            remaining -= toStore;
+            log(`Stored ${toStore} in battery.`);
+        }
+
+        if(remaining > 0) {
+            let offered = false;
+            if (state.isPvE && p.id === 1) { 
+                offered = true; 
+            } else {
+                offered = confirm(`Player ${p.id+1}: Do you want to offer your ${remaining} spare energy to Player ${opp.id+1} for AP?`);
+            }
+
+            if(offered) {
+                let accepted = false;
+                if(state.isPvE && opp.id === 1) { 
+                    accepted = true; 
+                } else {
+                    accepted = confirm(`Player ${opp.id+1}: Accept ${remaining} spare energy from Player ${p.id+1}? (They get ${remaining} AP)`);
+                }
+
+                if(accepted) {
+                    opp.energyPool += remaining;
+                    p.ap += remaining;
+                    log(`Player ${opp.id+1} accepted ${remaining} energy. Player ${p.id+1} gets ${remaining} AP.`);
+                } else {
+                    log(`Player ${opp.id+1} rejected energy. It is wasted.`);
+                }
+            } else {
+                log(`Player ${p.id+1} chose to waste their spare energy.`);
+            }
+        }
+        
+        p.discard.push(...p.hand);
+        p.hand = [];
+        
+        for(let i=p.grid.length-1; i>=0; i--) {
+            let c = p.grid[i];
+            if(CARD_DB[c].type.includes("Renewable") || c === "Battery Storage System") {
+                let keep = false;
+                if(state.isPvE && p.id === 1) { 
+                    keep = true; 
+                } else {
+                    keep = confirm(`Keep ${c} in Grid? (Cancel to discard)`);
+                }
+
+                if(!keep) {
+                    p.discard.push(p.grid.splice(i, 1)[0]);
+                }
+            } else {
+                p.discard.push(p.grid.splice(i, 1)[0]); // Nuclear and Thermal discard here
+            }
+        }
+
+        p.energyPool = 0;
+        p.activatedThisTurn = [];
+        
+        drawCards(p.id, 4);
+        
+        state.activeP = state.activeP === 0 ? 1 : 0;
+        state.phase = 0;
+        checkWin();
+        if(!isGameOver) {
+            log(`<hr>Player ${state.activeP+1}'s turn begins.`);
+            render();
+
+            if (state.isPvE && state.activeP === 1) {
+                setTimeout(doAITurn, 500); 
+            }
+        }
+    }
+    render();
+}
+
+// ---------------- AI LOGIC ----------------
+function doAITurn() {
+    if (!state.isPvE || state.activeP === 0 || isGameOver) return;
+
+    state.aiRecap = []; 
+    function addAiLog(msg) { 
+        state.aiRecap.push(msg); 
+        log("AI: " + msg); 
+    }
+
+    const origPrompt = window.prompt;
+    const origAlert = window.alert;
+
+    window.alert = function(msg) { 
+        if(msg.includes("CATASTROPHE") || msg.includes("GAME OVER")) origAlert(msg);
+    };
+    
+    window.prompt = function(msg) {
+        let p = state.players[1];
+        if (msg.includes("discard") || msg.includes("trash")) {
+            let pol = p.hand.find(c => c === "Pollution");
+            if(pol) return pol;
+            let therm = p.hand.find(c => CARD_DB[c].type.includes("Thermal"));
+            if(therm) return therm;
+            let safeCard = p.hand.find(c => c !== "Biosphere Habitat");
+            if(safeCard) return safeCard;
+            return p.hand.length > 0 ? p.hand[0] : null;
+        }
+        if (msg.includes("Spend how much")) return p.energyPool.toString();
+        return "";
+    };
+
+    let p = state.players[1];
+
+    let loopGuard = 15;
+    while(p.hand.length > 0 && loopGuard-- > 0 && !isGameOver) {
+        let played = false;
+        for(let i=p.hand.length-1; i>=0; i--) {
+            let cName = p.hand[i];
+            let cInfo = CARD_DB[cName];
+            
+            if(cName === "Biosphere Habitat") {
+                let polCount = p.hand.filter(c => c === "Pollution").length;
+                if(polCount < 2) continue;
+            }
+
+            let isGrid = cInfo.type.includes("Energy") || cName === "Battery Storage System";
+            if (!isGrid || (isGrid && p.grid.length < 4)) {
+                addAiLog("Played " + cName + " from hand.");
+                playCardFromHand(i);
+                played = true;
+                break;
+            }
+        }
+        if (!played) break;
+    }
+    if(isGameOver) return;
+    nextPhase(); 
+
+    for(let i=0; i<p.grid.length; i++) {
+        if(isGameOver) return;
+        let cName = p.grid[i];
+        let preEnergy = p.energyPool;
+        let preAp = p.ap;
+        
+        activateGridCard(i); 
+        
+        let diffEnergy = p.energyPool - preEnergy;
+        let diffAp = p.ap - preAp;
+        
+        if (diffEnergy > 0) addAiLog("Activated " + cName + ", stored " + diffEnergy + " Buy Energy.");
+        else if (diffAp > 0) addAiLog("Activated " + cName + ", gained " + diffAp + " AP.");
+        else addAiLog("Activated " + cName + " (passive/failed).");
+    }
+    if(isGameOver) return;
+    nextPhase(); 
+
+    let buyAttempts = 5;
+    while(buyAttempts-- > 0 && !isGameOver) {
+        let affordable = [];
+        for(let i=0; i<state.market.length; i++) {
+            if(state.market[i].count > 0 && CARD_DB[state.market[i].name].cost <= (p.energyPool + p.battery)) {
+                affordable.push(i);
+            }
+        }
+        if(affordable.length > 0) {
+            affordable.sort((a,b) => CARD_DB[state.market[b].name].cost - CARD_DB[state.market[a].name].cost);
+            let toBuy = affordable[0];
+            addAiLog("Bought " + state.market[toBuy].name + ".");
+            buyCard(toBuy);
+        } else {
+            break;
+        }
+    }
+    if(isGameOver) return;
+    addAiLog("Finished Turn.");
+
+    let recapHtml = state.aiRecap.map(r => `<li>${r}</li>`).join("");
+    document.getElementById('ai-recap-list').innerHTML = recapHtml;
+
+    nextPhase(); 
+
+    window.prompt = origPrompt;
+    window.alert = origAlert;
+}
+// ------------------------------------------
+
+function render() {
+    if(isGameOver) return;
+    
+    document.getElementById('co2-level').innerText = state.co2;
+    const phases = ["Main (Play Cards & Place to Grid)", "Activate (Click Grid Cards)", "Buy (Click Market Cards)", "Exporting/Cleanup..."];
+    document.getElementById('phase-info').innerText = `Phase: ${phases[state.phase]}`;
+
+    for(let i=0; i<2; i++) {
+        let p = state.players[i];
+        let bioTrashedCount = p.trashed.filter(c => c === "Biosphere Habitat").length;
+
+        document.getElementById(`p${i}-ap`).innerText = p.ap;
+        document.getElementById(`p${i}-energy`).innerText = p.energyPool;
+        document.getElementById(`p${i}-battery`).innerText = p.battery;
+        document.getElementById(`p${i}-deck`).innerText = p.deck.length;
+        document.getElementById(`p${i}-discard`).innerText = p.discard.length;
+        document.getElementById(`p${i}-trashed`).innerText = `${p.trashed.length} (Biospheres: ${bioTrashedCount}/4)`;
+        
+        document.getElementById(`p${i}-panel`).className = `panel ${state.activeP === i ? 'active-player' : ''}`;
+        
+        let handHtml = p.hand.map((c, idx) => {
+            let color = getCardColor(CARD_DB[c].type);
+            return `<div class="card" style="background-color: ${color};" onclick="playCardFromHand(${idx})"><b>${c}</b><br>${CARD_DB[c].type} | Cost: ${CARD_DB[c].cost}<br><i>${CARD_DB[c].text || ''}</i></div>`;
+        }).join('');
+        document.getElementById(`p${i}-hand`).innerHTML = handHtml;
+
+        let gridHtml = p.grid.map((c, idx) => {
+            let baseColor = getCardColor(CARD_DB[c].type);
+            let bgColor = p.activatedThisTurn.includes(idx) ? '#d3d3d3' : baseColor; // Darker if activated
+            return `<div class="card" style="background-color: ${bgColor}; border: ${p.activatedThisTurn.includes(idx) ? '1px dashed #333' : '1px solid #aaa'};" onclick="activateGridCard(${idx})"><b>${c}</b><br>${CARD_DB[c].type}</div>`;
+        }).join('');
+        document.getElementById(`p${i}-grid`).innerHTML = gridHtml;
+    }
+
+    let mktHtml = state.market.map((m, idx) => {
+        let color = getCardColor(CARD_DB[m.name].type);
+        return `<div class="card" style="background-color: ${color};" onclick="buyCard(${idx})"><b>${m.name}</b> (Qty: ${m.count})<br>${CARD_DB[m.name].type} | Cost: ${CARD_DB[m.name].cost}<br><i>${CARD_DB[m.name].text}</i></div>`;
+    }).join('');
+    document.getElementById('market-area').innerHTML = mktHtml;
+
+    checkBiosphereLoss(state.players[0]);
+    checkBiosphereLoss(state.players[1]);
+}
+
+startGame(false);
+</script>
+</body>
+</html>
